@@ -3,6 +3,7 @@ import '../../services/api_service.dart';
 import '../../models/user.dart';
 import '../../models/patient.dart';
 import '../../models/appointment.dart';
+import '../../widgets/doctor_navbar.dart';
 import '../doctor/doctor_appointment.dart';
 import '../doctor/doctor_medical_record.dart';
 import '../doctor/doctor_profile.dart';
@@ -19,7 +20,10 @@ class DoctorPatientListPage extends StatefulWidget {
 class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
   List<Patient> patients = [];
   List<Appointment> appointments = [];
+  List<Patient> filteredPatients = [];
+
   bool isLoading = true;
+  int currentIndex = 2;
 
   @override
   void initState() {
@@ -28,24 +32,43 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
   }
 
   void fetch() async {
-    try {
-      patients = await ApiService.getPatients();
-      print("PATIENT: ${patients.length}");
-    } catch (e) {
-      print("PATIENT ERROR: $e");
-    }
+    patients = await ApiService.getPatients();
+    appointments = await ApiService.getAppointments();
 
-    try {
-      appointments = await ApiService.getAppointments();
-    } catch (e) {
-      print("APPOINTMENT ERROR: $e");
-    }
+    // 🔥 ambil appointment milik dokter ini saja
+    final doctorAppointments = appointments
+        .where((a) => a.doctorCode == widget.user.code)
+        .toList();
+
+    // 🔥 ambil unique patientCode
+    final patientCodes = doctorAppointments.map((a) => a.patientCode).toSet();
+
+    // 🔥 filter patient berdasarkan itu
+    filteredPatients = patients
+        .where((p) => patientCodes.contains(p.patientCode))
+        .toList();
 
     setState(() => isLoading = false);
   }
 
+  // ================= STATS =================
+
+  int get newPatients => patients.length;
+
+  int get dailyVisits => appointments.length;
+
   int getVisit(String code) {
     return appointments.where((a) => a.patientCode == code).length;
+  }
+
+  // ================= SEARCH =================
+
+  void search(String query) {
+    final result = patients.where((p) {
+      return p.name.toLowerCase().contains(query.toLowerCase());
+    }).toList();
+
+    setState(() => filteredPatients = result);
   }
 
   String img(String? path) {
@@ -61,12 +84,45 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
 
     return Scaffold(
       backgroundColor: Color(0xFFF9FAF7),
-      bottomNavigationBar: _bottomNav(),
 
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Color(0xFF00261B),
-        onPressed: () {},
-        child: Icon(Icons.person_add),
+      // ✅ NAVBAR CONSISTENT
+      bottomNavigationBar: DoctorNavBar(
+        currentIndex: currentIndex,
+        onTap: (index) {
+          setState(() => currentIndex = index);
+
+          switch (index) {
+            case 0:
+              Navigator.pop(context);
+              break;
+            case 1:
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DoctorAppointmentPage(user: widget.user),
+                ),
+              );
+              break;
+            case 2:
+              break;
+            case 3:
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DoctorMedicalRecordPage(user: widget.user),
+                ),
+              );
+              break;
+            case 4:
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DoctorProfilePage(user: widget.user),
+                ),
+              );
+              break;
+          }
+        },
       ),
 
       body: SafeArea(
@@ -79,18 +135,28 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.medical_services, color: Colors.green),
-                    SizedBox(width: 8),
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Color(0xFF00261B),
+                      child: Text(
+                        widget.user.name.isNotEmpty
+                            ? widget.user.name[0].toUpperCase()
+                            : "D",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    SizedBox(width: 10),
                     Text(
                       "Clinic Parapluie",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
+                        color: Color(0xFF00261B),
                       ),
                     ),
                   ],
                 ),
-                Icon(Icons.notifications),
+                Icon(Icons.notifications, color: Color(0xFF00261B)),
               ],
             ),
 
@@ -106,11 +172,6 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
               ),
             ),
 
-            Text(
-              "ACTIVE RECORDS · ${patients.length} PATIENTS",
-              style: TextStyle(color: Colors.grey),
-            ),
-
             SizedBox(height: 20),
 
             // ================= SEARCH =================
@@ -121,6 +182,7 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: TextField(
+                onChanged: search,
                 decoration: InputDecoration(
                   icon: Icon(Icons.search),
                   hintText: "Search by name...",
@@ -134,16 +196,18 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
             // ================= STATS =================
             Row(
               children: [
-                Expanded(child: _statBox("12", "NEW PATIENTS", true)),
+                Expanded(child: _statBox("$newPatients", "NEW PATIENTS", true)),
                 SizedBox(width: 10),
-                Expanded(child: _statBox("24", "DAILY VISITS", false)),
+                Expanded(
+                  child: _statBox("$dailyVisits", "DAILY VISITS", false),
+                ),
               ],
             ),
 
             SizedBox(height: 20),
 
             // ================= LIST =================
-            ...patients.map((p) {
+            ...filteredPatients.map((p) {
               final visit = getVisit(p.patientCode);
 
               return Container(
@@ -156,29 +220,12 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
                 ),
                 child: Row(
                   children: [
-                    // AVATAR + STATUS DOT
-                    Stack(
-                      children: [
-                        CircleAvatar(
-                          radius: 28,
-                          backgroundImage: p.photo != null
-                              ? NetworkImage(img(p.photo))
-                              : null,
-                          child: p.photo == null ? Text(p.name[0]) : null,
-                        ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: Colors.green,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      ],
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundImage: p.photo != null
+                          ? NetworkImage(img(p.photo))
+                          : null,
+                      child: p.photo == null ? Text(p.name[0]) : null,
                     ),
 
                     SizedBox(width: 12),
@@ -189,19 +236,12 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
                         children: [
                           Text(
                             p.name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-
-                          SizedBox(height: 4),
-
                           Text(
-                            "${p.gender ?? '-'}",
+                            p.gender ?? "-",
                             style: TextStyle(color: Colors.grey),
                           ),
-
                           Text(
                             p.phone ?? "-",
                             style: TextStyle(color: Colors.grey),
@@ -210,25 +250,19 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
                       ),
                     ),
 
-                    Column(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade100,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            "$visit VISITS",
-                            style: TextStyle(color: Colors.green),
-                          ),
-                        ),
-                        SizedBox(height: 6),
-                        Icon(Icons.arrow_forward_ios, size: 14),
-                      ],
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade100,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        "$visit VISITS",
+                        style: TextStyle(color: Colors.green),
+                      ),
                     ),
                   ],
                 ),
@@ -260,77 +294,6 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
           Text(
             label,
             style: TextStyle(color: green ? Colors.white70 : Colors.black),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _bottomNav() {
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _nav(Icons.dashboard, "Dashboard", false, () {}),
-
-          _nav(Icons.calendar_today, "Appointments", false, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DoctorAppointmentPage(user: widget.user),
-              ),
-            );
-          }),
-
-          _nav(Icons.groups, "Patients", true, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DoctorPatientListPage(user: widget.user),
-              ),
-            );
-          }),
-
-          _nav(Icons.description, "Records", false, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DoctorMedicalRecordPage(user: widget.user),
-              ),
-            );
-          }),
-
-          _nav(Icons.person, "Profile", false, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DoctorProfilePage(user: widget.user),
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _nav(IconData icon, String label, bool active, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: active ? Colors.green : Colors.grey),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: active ? Colors.green : Colors.grey,
-            ),
           ),
         ],
       ),

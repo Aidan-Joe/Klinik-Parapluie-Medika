@@ -3,6 +3,7 @@ import '../../services/api_service.dart';
 import '../../models/user.dart';
 import '../../models/medicalrecord.dart';
 import '../../models/patient.dart';
+import '../../widgets/doctor_navbar.dart';
 import '../doctor/doctor_appointment.dart';
 import '../doctor/doctor_patient_list.dart';
 import '../doctor/doctor_profile.dart';
@@ -20,7 +21,10 @@ class DoctorMedicalRecordPage extends StatefulWidget {
 class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
   List<MedicalRecord> records = [];
   List<Patient> patients = [];
+  List<MedicalRecord> filtered = [];
+
   bool isLoading = true;
+  int currentIndex = 3;
 
   @override
   void initState() {
@@ -28,27 +32,46 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
     fetch();
   }
 
-  void fetch() async {
-    try {
-      records = await ApiService.getMedicalRecords();
-      print("RECORD: ${records.length}");
-    } catch (e) {
-      print("RECORD ERROR: $e");
-    }
+  Future<void> fetch() async {
+    records = await ApiService.getMedicalRecords();
+    patients = await ApiService.getPatients();
 
-    try {
-      patients = await ApiService.getPatients();
-      print("PATIENT: ${patients.length}");
-    } catch (e) {
-      print("PATIENT ERROR: $e");
-    }
+    filtered = records;
 
     setState(() => isLoading = false);
+  }
+
+  List<MedicalRecord> get myRecords =>
+      filtered.where((r) => r.doctorCode == widget.user.code).toList();
+
+  // ================= SEARCH =================
+
+  void search(String q) {
+    final result = records.where((r) {
+      final name = getName(r.patientCode).toLowerCase();
+      return name.contains(q.toLowerCase()) ||
+          r.diagnosis.toLowerCase().contains(q.toLowerCase());
+    }).toList();
+
+    setState(() => filtered = result);
+  }
+
+  String getName(String code) {
+    try {
+      return patients.firstWhere((p) => p.patientCode == code).name;
+    } catch (_) {
+      return code;
+    }
   }
 
   // ================= FORM =================
 
   void openForm({MedicalRecord? record}) {
+    String? selectedPatient = record?.patientCode;
+    DateTime selectedDate = record != null
+        ? DateTime.parse(record.visitDate)
+        : DateTime.now();
+
     final diagnosis = TextEditingController(text: record?.diagnosis ?? "");
     final treatment = TextEditingController(text: record?.treatment ?? "");
     final prescription = TextEditingController(
@@ -57,73 +80,121 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(record == null ? "Add Record" : "Edit Record"),
-        content: SingleChildScrollView(
-          child: Column(
-            children: [
-              TextField(
-                controller: diagnosis,
-                decoration: InputDecoration(labelText: "Diagnosis"),
-              ),
-              TextField(
-                controller: treatment,
-                decoration: InputDecoration(labelText: "Treatment"),
-              ),
-              TextField(
-                controller: prescription,
-                decoration: InputDecoration(labelText: "Prescription"),
-              ),
-            ],
+      builder: (_) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                if (record != null) {
-                  final index = records.indexOf(record);
+          title: Text(record == null ? "Add Record" : "Edit Record"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ✅ SELECT PATIENT
+                DropdownButtonFormField<String>(
+                  value: selectedPatient,
+                  hint: Text("Select Patient"),
+                  items: patients.map((p) {
+                    return DropdownMenuItem(
+                      value: p.patientCode,
+                      child: Text(p.name),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    setModalState(() => selectedPatient = val);
+                  },
+                ),
 
-                  records[index] = MedicalRecord(
-                    recordCode: record.recordCode,
-                    patientCode: record.patientCode,
-                    doctorCode: record.doctorCode,
-                    diagnosis: diagnosis.text,
-                    treatment: treatment.text,
-                    prescription: prescription.text,
-                    visitDate: record.visitDate,
-                  );
-                } else {
-                  records.add(
-                    MedicalRecord(
-                      recordCode: "NEW",
-                      patientCode: patients.first.patientCode,
-                      doctorCode: widget.user.code,
-                      diagnosis: diagnosis.text,
-                      treatment: treatment.text,
-                      prescription: prescription.text,
-                      visitDate: DateTime.now().toString().substring(0, 10),
-                    ),
-                  );
+                SizedBox(height: 10),
+
+                // ✅ DATE PICKER
+                InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2100),
+                    );
+
+                    if (picked != null) {
+                      setModalState(() => selectedDate = picked);
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: InputDecoration(labelText: "Visit Date"),
+                    child: Text("${selectedDate.toLocal()}".split(' ')[0]),
+                  ),
+                ),
+
+                SizedBox(height: 10),
+
+                TextField(
+                  controller: diagnosis,
+                  decoration: InputDecoration(labelText: "Diagnosis"),
+                ),
+                TextField(
+                  controller: treatment,
+                  decoration: InputDecoration(labelText: "Treatment"),
+                ),
+                TextField(
+                  controller: prescription,
+                  decoration: InputDecoration(labelText: "Prescription"),
+                ),
+              ],
+            ),
+          ),
+
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("Cancel"),
+            ),
+
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  if (selectedPatient == null) {
+                    throw Exception("Patient belum dipilih");
+                  }
+
+                  final data = {
+                    "Patientcode": selectedPatient, 
+                    "DoctorCode": widget.user.code,
+                    "Visit_date": selectedDate.toIso8601String().split(
+                      "T",
+                    )[0], 
+                    "Diagnosis": diagnosis.text,
+                    "Treatment": treatment.text,
+                    "Prescription": prescription.text,
+                  };
+
+                  if (record == null) {
+                    await ApiService.createMedicalRecord(data);
+                  } else {
+                    await ApiService.updateMedicalRecord(
+                      record.recordCode,
+                      data, // ✅ FULL DATA (PENTING!)
+                    );
+                  }
+
+                  await fetch();
+                  Navigator.pop(context);
+                } catch (e) {
+                  print("ERROR: $e");
+
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text("Gagal simpan data")));
                 }
-              });
-
-              Navigator.pop(context);
-            },
-            child: Text("Save"),
-          ),
-        ],
+              },
+              child: Text("Save"),
+            ),
+          ],
+        ),
       ),
     );
   }
-
-  List<MedicalRecord> get myRecords =>
-      records.where((r) => r.doctorCode == widget.user.code).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +204,46 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
 
     return Scaffold(
       backgroundColor: Color(0xFFF9FAF7),
-      bottomNavigationBar: _bottomNav(),
+
+      // ✅ NAVBAR FIX
+      bottomNavigationBar: DoctorNavBar(
+        currentIndex: currentIndex,
+        onTap: (index) {
+          setState(() => currentIndex = index);
+
+          switch (index) {
+            case 0:
+              Navigator.pop(context);
+              break;
+            case 1:
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DoctorAppointmentPage(user: widget.user),
+                ),
+              );
+              break;
+            case 2:
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DoctorPatientListPage(user: widget.user),
+                ),
+              );
+              break;
+            case 3:
+              break;
+            case 4:
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DoctorProfilePage(user: widget.user),
+                ),
+              );
+              break;
+          }
+        },
+      ),
 
       floatingActionButton: FloatingActionButton(
         backgroundColor: Color(0xFF00261B),
@@ -153,35 +263,28 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
                   children: [
                     CircleAvatar(
                       radius: 20,
-                      backgroundImage: NetworkImage(
-                        "https://i.pravatar.cc/150",
+                      backgroundColor: Color(0xFF00261B),
+                      child: Text(
+                        widget.user.name[0],
+                        style: TextStyle(color: Colors.white),
                       ),
                     ),
                     SizedBox(width: 10),
                     Text(
                       "Clinic Parapluie",
                       style: TextStyle(
-                        fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Color(0xFF00261B),
                       ),
                     ),
                   ],
                 ),
-                Icon(Icons.notifications),
+                Icon(Icons.notifications, color: Color(0xFF00261B)),
               ],
             ),
 
             SizedBox(height: 30),
-
-            // ================= TITLE =================
-            Text(
-              "CLINICAL DATABASE",
-              style: TextStyle(
-                fontSize: 12,
-                letterSpacing: 2,
-                color: Colors.grey,
-              ),
-            ),
 
             Text(
               "Medical Records",
@@ -209,6 +312,7 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: TextField(
+                onChanged: search,
                 decoration: InputDecoration(
                   icon: Icon(Icons.search),
                   hintText: "Search patient or diagnosis...",
@@ -219,35 +323,16 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
 
             SizedBox(height: 20),
 
-            // ================= STATS =================
+            // ================= TOTAL =================
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Color(0xFF00261B),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "TOTAL RECORDS",
-                        style: TextStyle(color: Colors.white70, fontSize: 10),
-                      ),
-                      Text(
-                        "${myRecords.length}",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Icon(Icons.folder, color: Colors.white54),
-                ],
+              child: Text(
+                "${myRecords.length} TOTAL RECORDS",
+                style: TextStyle(color: Colors.white),
               ),
             ),
 
@@ -255,18 +340,7 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
 
             // ================= LIST =================
             ...myRecords.map((r) {
-              String getName(String code) {
-                try {
-                  return patients.firstWhere((p) => p.patientCode == code).name;
-                } catch (e) {
-                  return code;
-                }
-              }
-
               final name = getName(r.patientCode);
-              final initials = name.isNotEmpty
-                  ? (name.length >= 2 ? name.substring(0, 2) : name[0])
-                  : "--";
 
               return Container(
                 margin: EdgeInsets.only(bottom: 14),
@@ -274,85 +348,24 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
-                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // LEFT SIDE
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        CircleAvatar(
-                          radius: 26,
-                          backgroundColor: Colors.grey.shade200,
-                          child: Text(initials),
+                        Text(
+                          name,
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
-
-                        SizedBox(width: 12),
-
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-
-                            SizedBox(height: 6),
-
-                            Row(
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: r.diagnosis.contains("Diabetes")
-                                        ? Colors.green.shade100
-                                        : Colors.grey.shade200,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(r.diagnosis),
-                                ),
-
-                                SizedBox(width: 10),
-
-                                Row(
-                                  children: [
-                                    Icon(Icons.calendar_today, size: 14),
-                                    SizedBox(width: 4),
-                                    Text(r.visitDate),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                        Text(r.diagnosis),
+                        Text(r.visitDate),
                       ],
                     ),
-
-                    // RIGHT SIDE
-                    Row(
-                      children: [
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey.shade200,
-                            foregroundColor: Colors.black,
-                            elevation: 0,
-                          ),
-                          onPressed: () => openForm(record: r),
-                          icon: Icon(Icons.edit, size: 16),
-                          label: Text("Edit"),
-                        ),
-
-                        SizedBox(width: 8),
-
-                        Icon(Icons.delete, color: Colors.grey),
-                      ],
+                    ElevatedButton(
+                      onPressed: () => openForm(record: r),
+                      child: Text("Edit"),
                     ),
                   ],
                 ),
@@ -360,77 +373,6 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
             }),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _bottomNav() {
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _nav(Icons.dashboard, "Dashboard", false, () {}),
-
-          _nav(Icons.calendar_today, "Appointments", false, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DoctorAppointmentPage(user: widget.user),
-              ),
-            );
-          }),
-
-          _nav(Icons.groups, "Patients", false, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DoctorPatientListPage(user: widget.user),
-              ),
-            );
-          }),
-
-          _nav(Icons.description, "Records", true, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DoctorMedicalRecordPage(user: widget.user),
-              ),
-            );
-          }),
-
-          _nav(Icons.person, "Profile", false, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DoctorProfilePage(user: widget.user),
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _nav(IconData icon, String label, bool active, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: active ? Colors.green : Colors.grey),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: active ? Colors.green : Colors.grey,
-            ),
-          ),
-        ],
       ),
     );
   }
