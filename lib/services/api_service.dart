@@ -10,7 +10,6 @@ import '../models/doctor.dart';
 class ApiService {
   static const String baseUrl = "http://localhost:1234/api";
 
-  // 🔥 helper client (sekali bikin, dipakai semua)
   static BrowserClient get client {
     final c = BrowserClient();
     c.withCredentials = true;
@@ -39,8 +38,23 @@ class ApiService {
       return data.map((e) => Appointment.fromJson(e)).toList();
     } else {
       throw Exception("Gagal ambil appointment");
+
     }
   }
+  
+  static Future<void> updateAppointmentStatus(
+    String code, String status) async {
+  final res = await client.put(
+    Uri.parse("$baseUrl/appointments/$code"),
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({"Status": status}),
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Gagal update status");
+  }
+}
+
 
   static Future<List<Patient>> getPatients() async {
     final res = await client.get(Uri.parse("$baseUrl/patients"));
@@ -54,7 +68,7 @@ class ApiService {
   }
 
   static Future<List<MedicalRecord>> getMedicalRecords() async {
-    final res = await client.get(Uri.parse("$baseUrl/medical-records"));
+    final res = await client.get(Uri.parse("$baseUrl/medicalrecords"));
 
     if (res.statusCode == 200) {
       List data = jsonDecode(res.body);

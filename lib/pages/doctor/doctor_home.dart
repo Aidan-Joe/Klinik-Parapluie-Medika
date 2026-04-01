@@ -5,6 +5,11 @@ import '../../models/appointment.dart';
 import '../../models/patient.dart';
 import '../../models/medicalrecord.dart';
 import '../../models/room.dart';
+import '../../models/doctor.dart';
+import '../doctor/doctor_appointment.dart';
+import '../doctor/doctor_patient_list.dart';
+import '../doctor/doctor_medical_record.dart';
+import '../doctor/doctor_profile.dart';
 
 class DoctorHome extends StatefulWidget {
   final User user;
@@ -20,6 +25,7 @@ class _DoctorHomeState extends State<DoctorHome> {
   List<Patient> patients = [];
   List<MedicalRecord> records = [];
   List<Room> rooms = [];
+  String? doctorPhoto;
 
   bool isLoading = true;
 
@@ -34,6 +40,20 @@ class _DoctorHomeState extends State<DoctorHome> {
       appointments = await ApiService.getAppointments();
     } catch (e) {
       debugPrint("Appointment error: $e");
+    }
+    final doctors = await ApiService.getDoctors();
+
+    try {
+      final doctors = await ApiService.getDoctors();
+
+      final doctor = doctors.firstWhere(
+        (d) => d.doctorCode == widget.user.code,
+        orElse: () => Doctor(doctorCode: "", name: "", photo: null),
+      );
+
+      doctorPhoto = doctor.photo;
+    } catch (e) {
+      debugPrint("Doctor error: $e");
     }
 
     try {
@@ -51,8 +71,6 @@ class _DoctorHomeState extends State<DoctorHome> {
     setState(() => isLoading = false);
   }
 
-  // ================= DATE =================
-
   bool isToday(String dateStr) {
     try {
       final date = DateTime.parse(dateStr);
@@ -65,8 +83,6 @@ class _DoctorHomeState extends State<DoctorHome> {
       return false;
     }
   }
-
-  // ================= FILTER =================
 
   List<Appointment> get doctorAppointments =>
       appointments.where((a) => a.doctorCode == widget.user.code).toList();
@@ -84,10 +100,15 @@ class _DoctorHomeState extends State<DoctorHome> {
     return list;
   }
 
-  List<MedicalRecord> get todayRecords => records
-      .where((r) => r.doctorCode == widget.user.code && isToday(r.visitDate))
-      .toList();
-  // ================= SUMMARY =================
+  List<MedicalRecord> get todayRecords {
+    final filtered = records
+        .where((r) => r.doctorCode == widget.user.code)
+        .toList();
+
+    filtered.sort((a, b) => b.visitDate.compareTo(a.visitDate));
+
+    return filtered.take(3).toList();
+  }
 
   int get todayAppointments => todayAppointmentsList.length;
 
@@ -107,7 +128,7 @@ class _DoctorHomeState extends State<DoctorHome> {
         .where(
           (r) =>
               r.doctorCode == widget.user.code &&
-              isToday(r.visitDate) && // 🔥 WAJIB
+              isToday(r.visitDate) &&
               todayPatients.contains(r.patientCode),
         )
         .map((r) => r.patientCode)
@@ -119,8 +140,6 @@ class _DoctorHomeState extends State<DoctorHome> {
 
     return pendingPatients.length;
   }
-
-  // ================= NEXT =================
 
   Appointment? get nextPatient {
     final now = TimeOfDay.now();
@@ -213,7 +232,15 @@ class _DoctorHomeState extends State<DoctorHome> {
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(radius: 20),
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundImage: doctorPhoto != null
+                            ? NetworkImage(doctorPhoto!)
+                            : null,
+                        child: doctorPhoto == null
+                            ? Text(widget.user.name[0])
+                            : null,
+                      ),
                       SizedBox(width: 10),
                       Text(
                         "Clinic Parapluie",
@@ -407,15 +434,10 @@ class _DoctorHomeState extends State<DoctorHome> {
               else
                 _emptyQueue(),
 
-              SizedBox(height: 25),
-
               if (nextPatient != null) _nextCard(nextPatient!),
-
-              SizedBox(height: 25),
 
               SizedBox(height: 15),
 
-              // ================= MY ROOM FIX =================
               if (myRoom != null)
                 Container(
                   padding: EdgeInsets.all(16),
@@ -795,8 +817,25 @@ class _DoctorHomeState extends State<DoctorHome> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              onPressed: () {},
-              icon: Icon(Icons.play_circle),
+              onPressed: () async {
+                try {
+                  await ApiService.updateAppointmentStatus(
+                    a.appointmentCode,
+                    "completed",
+                  );
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          DoctorMedicalRecordPage(user: widget.user),
+                    ),
+                  );
+                } catch (e) {
+                  print("START SESSION ERROR: $e");
+                }
+              },
+              icon: Icon(Icons.play_arrow),
               label: Text("Start Session"),
             ),
           ),
@@ -816,30 +855,63 @@ class _DoctorHomeState extends State<DoctorHome> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _nav(Icons.dashboard, "Dashboard", true, () {}),
-          _nav(Icons.calendar_today, "Appointments", false, () {}),
-          _nav(Icons.groups, "Patients", false, () {}),
-          _nav(Icons.description, "Records", false, () {}),
-          _nav(Icons.person, "Profile", false, () {}),
+
+          _nav(Icons.calendar_today, "Appointments", false, () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DoctorAppointmentPage(user: widget.user),
+              ),
+            );
+          }),
+
+          _nav(Icons.groups, "Patients", false, () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DoctorPatientListPage(user: widget.user),
+              ),
+            );
+          }),
+
+          _nav(Icons.description, "Records", false, () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DoctorMedicalRecordPage(user: widget.user),
+              ),
+            );
+          }),
+
+          _nav(Icons.person, "Profile", false, () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DoctorProfilePage(user: widget.user),
+              ),
+            );
+          }),
         ],
       ),
     );
   }
 
   Widget _nav(IconData icon, String label, bool active, VoidCallback onTap) {
-  return GestureDetector(
-    onTap: onTap,
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: active ? Colors.green : Colors.grey),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: active ? Colors.green : Colors.grey,
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: active ? Colors.green : Colors.grey),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: active ? Colors.green : Colors.grey,
+            ),
           ),
-        ),
-      ],
-    ),
-  );
-}}
+        ],
+      ),
+    );
+  }
+}

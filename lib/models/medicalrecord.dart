@@ -1,31 +1,31 @@
 class MedicalRecord {
   final String recordCode;
-  final String patientCode;
   final String doctorCode;
+  final String patientCode;
+  final String visitDate;
   final String diagnosis;
   final String treatment;
   final String prescription;
-  final String visitDate;
 
   MedicalRecord({
     required this.recordCode,
-    required this.patientCode,
     required this.doctorCode,
+    required this.patientCode,
+    required this.visitDate,
     required this.diagnosis,
     required this.treatment,
     required this.prescription,
-    required this.visitDate,
   });
 
   factory MedicalRecord.fromJson(Map<String, dynamic> json) {
     return MedicalRecord(
       recordCode: json['RecordCode'] ?? "",
-      patientCode: json['Patientcode'] ?? "",
       doctorCode: json['DoctorCode'] ?? "",
+      patientCode: json['Patientcode'] ?? "",
+      visitDate: json['Visit_date'] ?? "", 
       diagnosis: json['Diagnosis'] ?? "",
       treatment: json['Treatment'] ?? "",
       prescription: json['Prescription'] ?? "",
-      visitDate: json['VisitDate'] ?? "",
     );
   }
 }
