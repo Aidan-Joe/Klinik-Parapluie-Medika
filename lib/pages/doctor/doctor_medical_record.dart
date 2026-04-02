@@ -3,7 +3,10 @@ import '../../services/api_service.dart';
 import '../../models/user.dart';
 import '../../models/medicalrecord.dart';
 import '../../models/patient.dart';
+import '../../models/doctor.dart';
+
 import '../../widgets/doctor_navbar.dart';
+import '../../widgets/profile_avatar.dart';
 import '../doctor/doctor_appointment.dart';
 import '../doctor/doctor_patient_list.dart';
 import '../doctor/doctor_profile.dart';
@@ -22,6 +25,7 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
   List<MedicalRecord> records = [];
   List<Patient> patients = [];
   List<MedicalRecord> filtered = [];
+  List<Doctor> doctors = [];
 
   bool isLoading = true;
   int currentIndex = 3;
@@ -35,6 +39,7 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
   Future<void> fetch() async {
     records = await ApiService.getMedicalRecords();
     patients = await ApiService.getPatients();
+    doctors = await ApiService.getDoctors();
 
     filtered = records;
 
@@ -43,8 +48,6 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
 
   List<MedicalRecord> get myRecords =>
       filtered.where((r) => r.doctorCode == widget.user.code).toList();
-
-  // ================= SEARCH =================
 
   void search(String q) {
     final result = records.where((r) {
@@ -64,7 +67,21 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
     }
   }
 
-  // ================= FORM =================
+  String? getDoctorPhoto(String code) {
+    try {
+      return doctors.firstWhere((d) => d.doctorCode == code).photo;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? getPatientPhoto(String code) {
+    try {
+      return patients.firstWhere((p) => p.patientCode == code).photo;
+    } catch (_) {
+      return null;
+    }
+  }
 
   void openForm({MedicalRecord? record}) {
     String? selectedPatient = record?.patientCode;
@@ -90,7 +107,6 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ✅ SELECT PATIENT
                 DropdownButtonFormField<String>(
                   value: selectedPatient,
                   hint: Text("Select Patient"),
@@ -107,7 +123,6 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
 
                 SizedBox(height: 10),
 
-                // ✅ DATE PICKER
                 InkWell(
                   onTap: () async {
                     final picked = await showDatePicker(
@@ -159,11 +174,9 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
                   }
 
                   final data = {
-                    "Patientcode": selectedPatient, 
+                    "Patientcode": selectedPatient,
                     "DoctorCode": widget.user.code,
-                    "Visit_date": selectedDate.toIso8601String().split(
-                      "T",
-                    )[0], 
+                    "Visit_date": selectedDate.toIso8601String().split("T")[0],
                     "Diagnosis": diagnosis.text,
                     "Treatment": treatment.text,
                     "Prescription": prescription.text,
@@ -174,7 +187,7 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
                   } else {
                     await ApiService.updateMedicalRecord(
                       record.recordCode,
-                      data, // ✅ FULL DATA (PENTING!)
+                      data,
                     );
                   }
 
@@ -205,7 +218,6 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
     return Scaffold(
       backgroundColor: Color(0xFFF9FAF7),
 
-      // ✅ NAVBAR FIX
       bottomNavigationBar: DoctorNavBar(
         currentIndex: currentIndex,
         onTap: (index) {
@@ -255,19 +267,15 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
         child: ListView(
           padding: EdgeInsets.fromLTRB(16, 16, 16, 100),
           children: [
-            // ================= HEADER =================
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
+                    ProfileAvatar(
+                      name: widget.user.name,
+                      photoUrl: getDoctorPhoto(widget.user.code),
                       radius: 20,
-                      backgroundColor: Color(0xFF00261B),
-                      child: Text(
-                        widget.user.name[0],
-                        style: TextStyle(color: Colors.white),
-                      ),
                     ),
                     SizedBox(width: 10),
                     Text(
@@ -304,7 +312,6 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
 
             SizedBox(height: 20),
 
-            // ================= SEARCH =================
             Container(
               padding: EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
@@ -323,7 +330,6 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
 
             SizedBox(height: 20),
 
-            // ================= TOTAL =================
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -338,7 +344,6 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
 
             SizedBox(height: 20),
 
-            // ================= LIST =================
             ...myRecords.map((r) {
               final name = getName(r.patientCode);
 
@@ -350,19 +355,29 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(r.diagnosis),
-                        Text(r.visitDate),
-                      ],
+                    ProfileAvatar(
+                      name: name,
+                      photoUrl: getPatientPhoto(r.patientCode),
+                      radius: 22,
                     ),
+
+                    SizedBox(width: 12),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(r.diagnosis),
+                          Text(r.visitDate),
+                        ],
+                      ),
+                    ),
+
                     ElevatedButton(
                       onPressed: () => openForm(record: r),
                       child: Text("Edit"),

@@ -6,6 +6,9 @@ import '../../models/patient.dart';
 import '../../models/medicalrecord.dart';
 import '../../models/room.dart';
 import '../../models/doctor.dart';
+
+import '../../theme.dart';
+import '../../widgets/doctor_navbar.dart';
 import '../doctor/doctor_appointment.dart';
 import '../doctor/doctor_patient_list.dart';
 import '../doctor/doctor_medical_record.dart';
@@ -28,6 +31,7 @@ class _DoctorHomeState extends State<DoctorHome> {
   String? doctorPhoto;
 
   bool isLoading = true;
+  int currentIndex = 0;
 
   @override
   void initState() {
@@ -37,15 +41,21 @@ class _DoctorHomeState extends State<DoctorHome> {
 
   void fetchData() async {
     try {
-      appointments = await ApiService.getAppointments();
-    } catch (e) {
-      debugPrint("Appointment error: $e");
-    }
-    final doctors = await ApiService.getDoctors();
+      final results = await Future.wait([
+        ApiService.getAppointments(),
+        ApiService.getDoctors(),
+        ApiService.getPatients(),
+        ApiService.getMedicalRecords(),
+        ApiService.getRooms(),
+      ]);
 
-    try {
-      final doctors = await ApiService.getDoctors();
+      appointments = results[0] as List<Appointment>;
+      final doctors = results[1] as List<Doctor>;
+      patients = results[2] as List<Patient>;
+      records = results[3] as List<MedicalRecord>;
+      rooms = results[4] as List<Room>;
 
+      // ambil foto doctor
       final doctor = doctors.firstWhere(
         (d) => d.doctorCode == widget.user.code,
         orElse: () => Doctor(doctorCode: "", name: "", photo: null),
@@ -53,22 +63,12 @@ class _DoctorHomeState extends State<DoctorHome> {
 
       doctorPhoto = doctor.photo;
     } catch (e) {
-      debugPrint("Doctor error: $e");
+      debugPrint("FETCH ERROR: $e");
     }
 
-    try {
-      patients = await ApiService.getPatients();
-    } catch (_) {}
-
-    try {
-      records = await ApiService.getMedicalRecords();
-    } catch (_) {}
-
-    try {
-      rooms = await ApiService.getRooms();
-    } catch (_) {}
-
-    setState(() => isLoading = false);
+    if (mounted) {
+      setState(() => isLoading = false);
+    }
   }
 
   bool isToday(String dateStr) {
@@ -194,7 +194,6 @@ class _DoctorHomeState extends State<DoctorHome> {
       return null;
     }
   }
-  // ================= MY ROOM =================
 
   Room? get myRoom {
     if (todayAppointmentsList.isEmpty) return null;
@@ -219,7 +218,50 @@ class _DoctorHomeState extends State<DoctorHome> {
 
     return Scaffold(
       backgroundColor: Color(0xFFF9FAF7),
-      bottomNavigationBar: _bottomNav(),
+      bottomNavigationBar: DoctorNavBar(
+        currentIndex: currentIndex,
+        onTap: (index) {
+          setState(() => currentIndex = index);
+
+          switch (index) {
+            case 0:
+            case 0:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DoctorHome(user: widget.user),
+                ),
+              );
+              break;
+            case 1:
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DoctorAppointmentPage(user: widget.user),
+                ),
+              );
+              break;
+            case 2:
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DoctorPatientListPage(user: widget.user),
+                ),
+              );
+              break;
+            case 3:
+              break;
+            case 4:
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DoctorProfilePage(user: widget.user),
+                ),
+              );
+              break;
+          }
+        },
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(16, 12, 16, 90),
@@ -234,8 +276,8 @@ class _DoctorHomeState extends State<DoctorHome> {
                     children: [
                       CircleAvatar(
                         radius: 20,
-                        backgroundImage: doctorPhoto != null
-                            ? NetworkImage(doctorPhoto!)
+                        backgroundImage: photoUrl(doctorPhoto) != null
+                            ? NetworkImage(photoUrl(doctorPhoto)!)
                             : null,
                         child: doctorPhoto == null
                             ? Text(widget.user.name[0])
@@ -321,11 +363,22 @@ class _DoctorHomeState extends State<DoctorHome> {
                     "Today's Patient Queue",
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  Text(
-                    "View Schedule",
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              DoctorAppointmentPage(user: widget.user),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      "View Schedule",
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -422,7 +475,16 @@ class _DoctorHomeState extends State<DoctorHome> {
                                   Icons.chevron_right,
                                   color: Colors.white,
                                 ),
-                                onPressed: () {},
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => DoctorAppointmentPage(
+                                        user: widget.user,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ],
@@ -677,11 +739,22 @@ class _DoctorHomeState extends State<DoctorHome> {
 
                     SizedBox(height: 10),
 
-                    Text(
-                      "View All Records",
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                DoctorMedicalRecordPage(user: widget.user),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        "View All Records",
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -823,91 +896,26 @@ class _DoctorHomeState extends State<DoctorHome> {
                     a.appointmentCode,
                     "completed",
                   );
-
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          DoctorMedicalRecordPage(user: widget.user),
-                    ),
-                  );
                 } catch (e) {
                   print("START SESSION ERROR: $e");
                 }
+
+                // 🔥 PINDAH PAGE TETAP JALAN
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DoctorMedicalRecordPage(user: widget.user),
+                  ),
+                );
               },
-              icon: Icon(Icons.play_arrow),
-              label: Text("Start Session"),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _bottomNav() {
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _nav(Icons.dashboard, "Dashboard", true, () {}),
-
-          _nav(Icons.calendar_today, "Appointments", false, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DoctorAppointmentPage(user: widget.user),
+              icon: Icon(Icons.play_arrow, color: Colors.black),
+              label: Text(
+                "Start Consultation",
+                style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            );
-          }),
-
-          _nav(Icons.groups, "Patients", false, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DoctorPatientListPage(user: widget.user),
-              ),
-            );
-          }),
-
-          _nav(Icons.description, "Records", false, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DoctorMedicalRecordPage(user: widget.user),
-              ),
-            );
-          }),
-
-          _nav(Icons.person, "Profile", false, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DoctorProfilePage(user: widget.user),
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _nav(IconData icon, String label, bool active, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: active ? Colors.green : Colors.grey),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: active ? Colors.green : Colors.grey,
             ),
           ),
         ],

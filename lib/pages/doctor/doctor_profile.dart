@@ -6,6 +6,9 @@ import '../../widgets/profile_avatar.dart';
 import '../../widgets/doctor_navbar.dart';
 import '../../login_page.dart';
 
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+
 import 'doctor_home.dart';
 import 'doctor_appointment.dart';
 import 'doctor_patient_list.dart';
@@ -26,69 +29,68 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
 
   int currentIndex = 4;
 
+  File? selectedImage;
+
   @override
   void initState() {
     super.initState();
     fetch();
   }
 
-  // ================= FETCH =================
   Future<void> fetch() async {
-    final doctors = await ApiService.getDoctors();
+    try {
+      final doctors = await ApiService.getDoctors();
 
-    doctor = doctors.firstWhere(
-      (d) => d.doctorCode == widget.user.code,
-      orElse: () => Doctor(
-        doctorCode: "",
-        name: "",
-        photo: null,
-      ),
-    );
+      doctor = doctors.firstWhere(
+        (d) => d.doctorCode == widget.user.code,
+        orElse: () => Doctor(doctorCode: "", name: ""),
+      );
 
-    // ✅ FIX: pakai availability + huruf besar
-    isAvailable = doctor?.availability == "Available";
+      isAvailable = doctor?.availability == "Available";
+    } catch (e) {
+      debugPrint("FETCH ERROR: $e");
+    }
 
-    setState(() => isLoading = false);
+    if (mounted) setState(() => isLoading = false);
   }
 
-  // ================= UPDATE STATUS =================
   void updateStatus(bool value) async {
+    if (doctor == null) return;
+
     setState(() => isAvailable = value);
 
     try {
       await ApiService.updateDoctorStatus(
-        widget.user.code,
+        doctor!,
         value ? "Available" : "Not Available",
       );
     } catch (e) {
       print("ERROR STATUS: $e");
+
+      // rollback kalau gagal
+      setState(() => isAvailable = !value);
     }
   }
 
-  // ================= UPDATE PHOTO =================
-  void updatePhoto() async {
-    String newPhoto = "/uploads/default.png";
+  Future<void> pickImage() async {
+    final picker = ImagePicker();
 
-    try {
-      await ApiService.updateDoctorPhoto(
-        widget.user.code,
-        newPhoto,
-      );
+    final picked = await picker.pickImage(source: ImageSource.gallery);
 
-      await fetch();
-    } catch (e) {
-      print("ERROR PHOTO: $e");
+    if (picked != null) {
+      setState(() {
+        selectedImage = File(picked.path);
+      });
+
+    
     }
   }
 
-  // ================= LOGOUT =================
   void _logout() {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text("Logout"),
         content: Text("Are you sure you want to logout?"),
         actions: [
@@ -115,24 +117,20 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
     );
   }
 
-  // ================= IMAGE =================
   String img(String? path) {
     if (path == null || path.isEmpty) return "";
-    return "http://localhost:1234$path";
+    return "http://192.168.0.111:1234/uploads/$path";
   }
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
       backgroundColor: Color(0xFFF9FAF7),
 
-      // ================= NAVBAR =================
       bottomNavigationBar: DoctorNavBar(
         currentIndex: currentIndex,
         onTap: (index) {
@@ -143,31 +141,32 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                    builder: (_) => DoctorHome(user: widget.user)),
+                  builder: (_) => DoctorHome(user: widget.user),
+                ),
               );
               break;
             case 1:
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                    builder: (_) =>
-                        DoctorAppointmentPage(user: widget.user)),
+                  builder: (_) => DoctorAppointmentPage(user: widget.user),
+                ),
               );
               break;
             case 2:
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                    builder: (_) =>
-                        DoctorPatientListPage(user: widget.user)),
+                  builder: (_) => DoctorPatientListPage(user: widget.user),
+                ),
               );
               break;
             case 3:
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                    builder: (_) =>
-                        DoctorMedicalRecordPage(user: widget.user)),
+                  builder: (_) => DoctorMedicalRecordPage(user: widget.user),
+                ),
               );
               break;
             case 4:
@@ -180,17 +179,23 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
         child: ListView(
           padding: EdgeInsets.fromLTRB(16, 16, 16, 100),
           children: [
-
-            // ================= HEADER =================
+            // HEADER
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    ProfileAvatar(
-                      name: widget.user.name,
-                      photoUrl: img(doctor?.photo),
+                    CircleAvatar(
                       radius: 20,
+                      backgroundImage: selectedImage != null
+                          ? FileImage(selectedImage!)
+                          : (doctor?.photo != null &&
+                                  doctor!.photo!.isNotEmpty
+                              ? NetworkImage(img(doctor!.photo))
+                              : null) as ImageProvider?,
+                      child: doctor?.photo == null && selectedImage == null
+                          ? Text(widget.user.name[0])
+                          : null,
                     ),
                     SizedBox(width: 10),
                     Text(
@@ -209,37 +214,49 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
 
             SizedBox(height: 30),
 
-            // ================= PROFILE CARD =================
+            // PROFILE CARD
             Container(
               padding: EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Color(0xFF00261B),
+                color: Color(0xFF16C47F),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
                 children: [
-                  ProfileAvatar(
-                    name: widget.user.name,
-                    photoUrl: img(doctor?.photo),
+                  CircleAvatar(
                     radius: 40,
+                    backgroundImage: selectedImage != null
+                        ? FileImage(selectedImage!)
+                        : (doctor?.photo != null &&
+                                doctor!.photo!.isNotEmpty
+                            ? NetworkImage(img(doctor!.photo))
+                            : null) as ImageProvider?,
+                    child: doctor?.photo == null && selectedImage == null
+                        ? Text(widget.user.name[0])
+                        : null,
                   ),
                   SizedBox(height: 10),
                   Text(
                     widget.user.name,
                     style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold),
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   SizedBox(height: 4),
-                  Text(
-                    "Doctor",
-                    style: TextStyle(color: Colors.white70),
-                  ),
+                  Text("Doctor", style: TextStyle(color: Colors.white70)),
                   SizedBox(height: 15),
-                  ElevatedButton(
-                    onPressed: updatePhoto,
-                    child: Text("Change Photo"),
+
+                  GestureDetector(
+                    onTap: pickImage,
+                    child: Text(
+                      "Change Photo",
+                      style: TextStyle(
+                        color: Colors.greenAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -247,7 +264,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
 
             SizedBox(height: 20),
 
-            // ================= STATUS =================
+            // AVAILABILITY
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -257,8 +274,10 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text("Availability",
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    "Availability",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   Switch(
                     value: isAvailable,
                     onChanged: updateStatus,
@@ -270,7 +289,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
 
             SizedBox(height: 20),
 
-            // ================= INFO =================
+            // INFO
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -280,7 +299,6 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
               child: Column(
                 children: [
                   _info("Doctor ID", widget.user.code),
-                  _info("Email", doctor?.email ?? "-"),
                   _info("Specialization", doctor?.specialization ?? "-"),
                 ],
               ),
@@ -288,7 +306,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
 
             SizedBox(height: 30),
 
-            // ================= LOGOUT =================
+            // LOGOUT
             SizedBox(
               width: double.infinity,
               height: 52,

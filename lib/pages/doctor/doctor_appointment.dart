@@ -86,8 +86,9 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
     }
   }
 
-  String img(String? path) =>
-      path == null || path.isEmpty ? "" : "http://localhost:1234$path";
+  String img(String? path) => path == null || path.isEmpty
+      ? ""
+      : "${ApiService.baseUrl.replaceAll('/api', '')}$path";
 
   @override
   Widget build(BuildContext context) {
