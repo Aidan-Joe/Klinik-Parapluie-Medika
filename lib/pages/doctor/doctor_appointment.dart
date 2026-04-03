@@ -6,6 +6,7 @@ import '../../models/patient.dart';
 import '../doctor/doctor_patient_list.dart';
 import '../doctor/doctor_medical_record.dart';
 import '../doctor/doctor_profile.dart';
+import '../../theme.dart';
 import '../../widgets/doctor_navbar.dart';
 
 class DoctorAppointmentPage extends StatefulWidget {
@@ -86,9 +87,7 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
     }
   }
 
-  String img(String? path) => path == null || path.isEmpty
-      ? ""
-      : "${ApiService.baseUrl.replaceAll('/api', '')}$path";
+  // Photo URLs are resolved via photoUrl() from theme.dart
 
   @override
   Widget build(BuildContext context) {
@@ -258,7 +257,7 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
                         CircleAvatar(
                           radius: 26,
                           backgroundImage: photo != null
-                              ? NetworkImage(img(photo))
+                              ? NetworkImage(photoUrl(photo) ?? '')
                               : null,
                           child: photo == null ? Text(name[0]) : null,
                         ),

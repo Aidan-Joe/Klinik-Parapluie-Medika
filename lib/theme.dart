@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'services/api_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  CLINIC PARAPLUIE MEDIKA — DESIGN SYSTEM
@@ -161,7 +162,9 @@ Color appointmentStatusColor(String status) {
 
 String? photoUrl(String? filename) {
   if (filename == null || filename.trim().isEmpty) return null;
-  return 'http://192.168.68.136:1234/uploads/avatars/$filename';
+  // Remove trailing "/api" (with optional slash) to get the bare server root.
+  final serverRoot = ApiService.baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+  return '$serverRoot/uploads/avatars/$filename';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -189,7 +189,7 @@ class _DoctorHomeState extends State<DoctorHome> {
 
   String? getPatientPhoto(String code) {
     try {
-      return patients.firstWhere((p) => p.patientCode == code).photo;
+      return photoUrl(patients.firstWhere((p) => p.patientCode == code).photo);
     } catch (_) {
       return null;
     }

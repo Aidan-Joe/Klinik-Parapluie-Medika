@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../models/user.dart';
 import '../../models/doctor.dart';
+import '../../theme.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../widgets/doctor_navbar.dart';
 import '../../login_page.dart';
@@ -117,10 +118,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
     );
   }
 
-  String img(String? path) {
-    if (path == null || path.isEmpty) return "";
-    return "http://192.168.0.111:1234/uploads/$path";
-  }
+  // Photo URLs are resolved via photoUrl() from theme.dart
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +189,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
                           ? FileImage(selectedImage!)
                           : (doctor?.photo != null &&
                                   doctor!.photo!.isNotEmpty
-                              ? NetworkImage(img(doctor!.photo))
+                              ? NetworkImage(photoUrl(doctor!.photo) ?? '')
                               : null) as ImageProvider?,
                       child: doctor?.photo == null && selectedImage == null
                           ? Text(widget.user.name[0])
@@ -229,7 +227,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
                         ? FileImage(selectedImage!)
                         : (doctor?.photo != null &&
                                 doctor!.photo!.isNotEmpty
-                            ? NetworkImage(img(doctor!.photo))
+                            ? NetworkImage(photoUrl(doctor!.photo) ?? '')
                             : null) as ImageProvider?,
                     child: doctor?.photo == null && selectedImage == null
                         ? Text(widget.user.name[0])

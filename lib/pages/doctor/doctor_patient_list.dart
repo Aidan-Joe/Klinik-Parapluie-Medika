@@ -3,6 +3,7 @@ import '../../services/api_service.dart';
 import '../../models/user.dart';
 import '../../models/patient.dart';
 import '../../models/appointment.dart';
+import '../../theme.dart';
 import '../../widgets/doctor_navbar.dart';
 import '../doctor/doctor_appointment.dart';
 import '../doctor/doctor_medical_record.dart';
@@ -71,10 +72,7 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
     setState(() => filteredPatients = result);
   }
 
-  String img(String? path) {
-    if (path == null || path.isEmpty) return "";
-    return "http://localhost:1234$path";
-  }
+  // Photo URLs are resolved via photoUrl() from theme.dart
 
   @override
   Widget build(BuildContext context) {
@@ -223,7 +221,7 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
                     CircleAvatar(
                       radius: 28,
                       backgroundImage: p.photo != null
-                          ? NetworkImage(img(p.photo))
+                          ? NetworkImage(photoUrl(p.photo) ?? '')
                           : null,
                       child: p.photo == null ? Text(p.name[0]) : null,
                     ),

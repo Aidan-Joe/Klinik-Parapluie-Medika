@@ -6,6 +6,7 @@ import '../../models/patient.dart';
 import '../../models/doctor.dart';
 
 import '../../widgets/doctor_navbar.dart';
+import '../../theme.dart';
 import '../../widgets/profile_avatar.dart';
 import '../doctor/doctor_appointment.dart';
 import '../doctor/doctor_patient_list.dart';
@@ -69,7 +70,7 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
 
   String? getDoctorPhoto(String code) {
     try {
-      return doctors.firstWhere((d) => d.doctorCode == code).photo;
+      return photoUrl(doctors.firstWhere((d) => d.doctorCode == code).photo);
     } catch (_) {
       return null;
     }
@@ -77,7 +78,7 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
 
   String? getPatientPhoto(String code) {
     try {
-      return patients.firstWhere((p) => p.patientCode == code).photo;
+      return photoUrl(patients.firstWhere((p) => p.patientCode == code).photo);
     } catch (_) {
       return null;
     }
