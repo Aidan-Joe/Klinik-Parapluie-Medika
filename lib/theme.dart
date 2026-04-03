@@ -161,7 +161,7 @@ Color appointmentStatusColor(String status) {
 
 String? photoUrl(String? filename) {
   if (filename == null || filename.trim().isEmpty) return null;
-  return 'http://192.168.18.66:1234/uploads/avatars/$filename';
+  return 'http://192.168.68.136:1234/uploads/avatars/$filename';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
