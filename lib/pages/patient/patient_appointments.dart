@@ -4,6 +4,7 @@ import '../../models/user.dart';
 import '../../models/appointment.dart';
 import '../../models/doctor.dart';
 import '../../theme.dart';
+import '../../theme.dart';
 import 'patient_book_appointment.dart';
 
 class PatientAppointments extends StatefulWidget {
@@ -145,7 +146,15 @@ class _PatientAppointmentsState extends State<PatientAppointments>
               children: [
                 ProfileAvatarInline(
                   name: doctorName,
-                  photoUrl: null, // Doctors don't expose photo in API listing
+                  photoUrl: photoUrl(
+                    doctors
+                        .where((d) => d.doctorCode == a.doctorCode)
+                        .isNotEmpty
+                        ? doctors
+                            .firstWhere((d) => d.doctorCode == a.doctorCode)
+                            .photo
+                        : null,
+                  ),
                   radius: 22,
                 ),
                 const SizedBox(width: 12),

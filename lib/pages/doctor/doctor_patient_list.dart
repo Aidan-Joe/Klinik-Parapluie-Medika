@@ -72,7 +72,7 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
     setState(() => filteredPatients = result);
   }
 
-  // Photo URLs are resolved via photoUrl() from theme.dart
+
 
   @override
   Widget build(BuildContext context) {
@@ -220,8 +220,8 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
                   children: [
                     CircleAvatar(
                       radius: 28,
-                      backgroundImage: p.photo != null
-                          ? NetworkImage(photoUrl(p.photo) ?? '')
+                      backgroundImage: photoUrl(p.photo) != null
+                          ? NetworkImage(photoUrl(p.photo)!)
                           : null,
                       child: p.photo == null ? Text(p.name[0]) : null,
                     ),

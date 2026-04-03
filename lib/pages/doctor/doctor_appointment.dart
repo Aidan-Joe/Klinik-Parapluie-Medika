@@ -81,13 +81,13 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
 
   String? getPhoto(String code) {
     try {
-      return patients.firstWhere((p) => p.patientCode == code).photo;
+      return photoUrl(
+        patients.firstWhere((p) => p.patientCode == code).photo,
+      );
     } catch (_) {
       return null;
     }
   }
-
-  // Photo URLs are resolved via photoUrl() from theme.dart
 
   @override
   Widget build(BuildContext context) {
@@ -257,7 +257,7 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
                         CircleAvatar(
                           radius: 26,
                           backgroundImage: photo != null
-                              ? NetworkImage(photoUrl(photo) ?? '')
+                              ? NetworkImage(photo)
                               : null,
                           child: photo == null ? Text(name[0]) : null,
                         ),

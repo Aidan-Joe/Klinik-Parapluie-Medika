@@ -118,7 +118,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
     );
   }
 
-  // Photo URLs are resolved via photoUrl() from theme.dart
+
 
   @override
   Widget build(BuildContext context) {
@@ -189,7 +189,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
                           ? FileImage(selectedImage!)
                           : (doctor?.photo != null &&
                                   doctor!.photo!.isNotEmpty
-                              ? NetworkImage(photoUrl(doctor!.photo) ?? '')
+                              ? NetworkImage(photoUrl(doctor!.photo)!)
                               : null) as ImageProvider?,
                       child: doctor?.photo == null && selectedImage == null
                           ? Text(widget.user.name[0])
@@ -227,7 +227,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
                         ? FileImage(selectedImage!)
                         : (doctor?.photo != null &&
                                 doctor!.photo!.isNotEmpty
-                            ? NetworkImage(photoUrl(doctor!.photo) ?? '')
+                            ? NetworkImage(photoUrl(doctor!.photo)!)
                             : null) as ImageProvider?,
                     child: doctor?.photo == null && selectedImage == null
                         ? Text(widget.user.name[0])

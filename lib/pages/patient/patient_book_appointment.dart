@@ -3,6 +3,7 @@ import '../../services/api_service.dart';
 import '../../models/user.dart';
 import '../../models/doctor.dart';
 import '../../theme.dart';
+import '../../widgets/profile_avatar.dart';
 
 class PatientBookAppointment extends StatefulWidget {
   final User user;
@@ -262,19 +263,13 @@ class _PatientBookAppointmentState extends State<PatientBookAppointment> {
         ),
         child: Row(
           children: [
-            CircleAvatar(
+            ProfileAvatar(
+              name: d.name,
+              photoUrl: photoUrl(d.photo),
               radius: 22,
               backgroundColor: selected
                   ? AppColors.accentGreen
                   : AppColors.darkGreen.withOpacity(0.12),
-              child: Text(
-                d.name.isNotEmpty ? d.name[0].toUpperCase() : 'D',
-                style: TextStyle(
-                  color: AppColors.darkGreen,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 17,
-                ),
-              ),
             ),
             const SizedBox(width: 14),
             Expanded(
