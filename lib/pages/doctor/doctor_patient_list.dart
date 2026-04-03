@@ -3,8 +3,10 @@ import '../../services/api_service.dart';
 import '../../models/user.dart';
 import '../../models/patient.dart';
 import '../../models/appointment.dart';
+import '../../models/doctor.dart'; // ✅ TAMBAH
 import '../../theme.dart';
 import '../../widgets/doctor_navbar.dart';
+import '../../widgets/profile_avatar.dart'; // ✅ TAMBAH
 import '../doctor/doctor_appointment.dart';
 import '../doctor/doctor_medical_record.dart';
 import '../doctor/doctor_profile.dart';
@@ -15,13 +17,16 @@ class DoctorPatientListPage extends StatefulWidget {
   const DoctorPatientListPage({super.key, required this.user});
 
   @override
-  State<DoctorPatientListPage> createState() => _DoctorPatientListPageState();
+  State<DoctorPatientListPage> createState() =>
+      _DoctorPatientListPageState();
 }
 
-class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
+class _DoctorPatientListPageState
+    extends State<DoctorPatientListPage> {
   List<Patient> patients = [];
   List<Appointment> appointments = [];
   List<Patient> filteredPatients = [];
+  List<Doctor> doctors = []; // ✅ TAMBAH
 
   bool isLoading = true;
   int currentIndex = 2;
@@ -36,15 +41,17 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
     patients = await ApiService.getPatients();
     appointments = await ApiService.getAppointments();
 
-    // 🔥 ambil appointment milik dokter ini saja
+    try {
+      doctors = await ApiService.getDoctors(); // ✅ TAMBAH
+    } catch (_) {}
+
     final doctorAppointments = appointments
         .where((a) => a.doctorCode == widget.user.code)
         .toList();
 
-    // 🔥 ambil unique patientCode
-    final patientCodes = doctorAppointments.map((a) => a.patientCode).toSet();
+    final patientCodes =
+        doctorAppointments.map((a) => a.patientCode).toSet();
 
-    // 🔥 filter patient berdasarkan itu
     filteredPatients = patients
         .where((p) => patientCodes.contains(p.patientCode))
         .toList();
@@ -59,31 +66,44 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
   int get dailyVisits => appointments.length;
 
   int getVisit(String code) {
-    return appointments.where((a) => a.patientCode == code).length;
+    return appointments
+        .where((a) => a.patientCode == code)
+        .length;
   }
 
   // ================= SEARCH =================
 
   void search(String query) {
     final result = patients.where((p) {
-      return p.name.toLowerCase().contains(query.toLowerCase());
+      return p.name
+          .toLowerCase()
+          .contains(query.toLowerCase());
     }).toList();
 
     setState(() => filteredPatients = result);
   }
 
-
+  // ✅ TAMBAH
+  String? getDoctorPhoto(String code) {
+    try {
+      return photoUrl(
+        doctors.firstWhere((d) => d.doctorCode == code).photo,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+          body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
       backgroundColor: Color(0xFFF9FAF7),
 
-      // ✅ NAVBAR CONSISTENT
       bottomNavigationBar: DoctorNavBar(
         currentIndex: currentIndex,
         onTap: (index) {
@@ -97,7 +117,8 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => DoctorAppointmentPage(user: widget.user),
+                  builder: (_) =>
+                      DoctorAppointmentPage(user: widget.user),
                 ),
               );
               break;
@@ -107,7 +128,8 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => DoctorMedicalRecordPage(user: widget.user),
+                  builder: (_) =>
+                      DoctorMedicalRecordPage(user: widget.user),
                 ),
               );
               break;
@@ -115,7 +137,8 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => DoctorProfilePage(user: widget.user),
+                  builder: (_) =>
+                      DoctorProfilePage(user: widget.user),
                 ),
               );
               break;
@@ -129,21 +152,21 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
           children: [
             // ================= HEADER =================
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment:
+                  MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
+                    // ✅ FIX DI SINI
+                    ProfileAvatar(
+                      name: widget.user.name,
+                      photoUrl:
+                          getDoctorPhoto(widget.user.code),
                       radius: 20,
-                      backgroundColor: Color(0xFF00261B),
-                      child: Text(
-                        widget.user.name.isNotEmpty
-                            ? widget.user.name[0].toUpperCase()
-                            : "D",
-                        style: TextStyle(color: Colors.white),
-                      ),
                     ),
+
                     SizedBox(width: 10),
+
                     Text(
                       "Clinic Parapluie",
                       style: TextStyle(
@@ -154,13 +177,23 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
                     ),
                   ],
                 ),
-                Icon(Icons.notifications, color: Color(0xFF00261B)),
+
+                Icon(Icons.notifications,
+                    color: Color(0xFF00261B)),
               ],
             ),
 
             SizedBox(height: 20),
 
-            // ================= TITLE =================
+            Text(
+              "LIST OF PATIENTS",
+              style: TextStyle(
+                fontSize: 12,
+                letterSpacing: 2,
+                color: Colors.grey,
+              ),
+            ),
+
             Text(
               "Patients",
               style: TextStyle(
@@ -172,7 +205,6 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
 
             SizedBox(height: 20),
 
-            // ================= SEARCH =================
             Container(
               padding: EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
@@ -191,20 +223,21 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
 
             SizedBox(height: 20),
 
-            // ================= STATS =================
             Row(
               children: [
-                Expanded(child: _statBox("$newPatients", "NEW PATIENTS", true)),
+                Expanded(
+                    child:
+                        _statBox("$newPatients", "TOTAL PATIENTS", true)),
                 SizedBox(width: 10),
                 Expanded(
-                  child: _statBox("$dailyVisits", "DAILY VISITS", false),
+                  child: _statBox(
+                      "$dailyVisits", "DAILY VISITS", false),
                 ),
               ],
             ),
 
             SizedBox(height: 20),
 
-            // ================= LIST =================
             ...filteredPatients.map((p) {
               final visit = getVisit(p.patientCode);
 
@@ -214,7 +247,10 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
-                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black12, blurRadius: 10)
+                  ],
                 ),
                 child: Row(
                   children: [
@@ -223,26 +259,31 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
                       backgroundImage: photoUrl(p.photo) != null
                           ? NetworkImage(photoUrl(p.photo)!)
                           : null,
-                      child: p.photo == null ? Text(p.name[0]) : null,
+                      child:
+                          p.photo == null ? Text(p.name[0]) : null,
                     ),
 
                     SizedBox(width: 12),
 
                     Expanded(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
                         children: [
                           Text(
                             p.name,
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold),
                           ),
                           Text(
                             p.gender ?? "-",
-                            style: TextStyle(color: Colors.grey),
+                            style:
+                                TextStyle(color: Colors.grey),
                           ),
                           Text(
                             p.phone ?? "-",
-                            style: TextStyle(color: Colors.grey),
+                            style:
+                                TextStyle(color: Colors.grey),
                           ),
                         ],
                       ),
@@ -255,11 +296,13 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
                       ),
                       decoration: BoxDecoration(
                         color: Colors.green.shade100,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius:
+                            BorderRadius.circular(20),
                       ),
                       child: Text(
                         "$visit VISITS",
-                        style: TextStyle(color: Colors.green),
+                        style:
+                            TextStyle(color: Colors.green),
                       ),
                     ),
                   ],
@@ -276,7 +319,9 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: green ? Color(0xFF00261B) : Colors.grey.shade200,
+        color: green
+            ? Color(0xFF00261B)
+            : Colors.grey.shade200,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -291,7 +336,8 @@ class _DoctorPatientListPageState extends State<DoctorPatientListPage> {
           ),
           Text(
             label,
-            style: TextStyle(color: green ? Colors.white70 : Colors.black),
+            style: TextStyle(
+                color: green ? Colors.white70 : Colors.black),
           ),
         ],
       ),

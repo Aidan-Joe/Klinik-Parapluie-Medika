@@ -299,6 +299,14 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
 
             SizedBox(height: 30),
 
+             Text(
+              "LIST OF MEDICAL RECORDS",
+              style: TextStyle(
+                fontSize: 12,
+                letterSpacing: 2,
+                color: Colors.grey,
+              ),
+            ),
             Text(
               "Medical Records",
               style: TextStyle(
@@ -306,13 +314,6 @@ class _DoctorMedicalRecordPageState extends State<DoctorMedicalRecordPage> {
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF00261B),
               ),
-            ),
-
-            SizedBox(height: 10),
-
-            Text(
-              "Comprehensive view of patient histories and diagnoses.",
-              style: TextStyle(color: Colors.grey),
             ),
 
             SizedBox(height: 20),

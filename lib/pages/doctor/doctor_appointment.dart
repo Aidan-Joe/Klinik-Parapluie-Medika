@@ -3,11 +3,13 @@ import '../../services/api_service.dart';
 import '../../models/user.dart';
 import '../../models/appointment.dart';
 import '../../models/patient.dart';
+import '../../models/doctor.dart'; 
 import '../doctor/doctor_patient_list.dart';
 import '../doctor/doctor_medical_record.dart';
 import '../doctor/doctor_profile.dart';
 import '../../theme.dart';
 import '../../widgets/doctor_navbar.dart';
+import '../../widgets/profile_avatar.dart'; 
 
 class DoctorAppointmentPage extends StatefulWidget {
   final User user;
@@ -21,10 +23,10 @@ class DoctorAppointmentPage extends StatefulWidget {
 class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
   List<Appointment> appointments = [];
   List<Patient> patients = [];
+  List<Doctor> doctors = []; // ✅ TAMBAH
   bool isLoading = true;
 
   int currentIndex = 1;
-
   String selectedFilter = "all";
 
   @override
@@ -40,6 +42,10 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
 
     try {
       patients = await ApiService.getPatients();
+    } catch (_) {}
+
+    try {
+      doctors = await ApiService.getDoctors(); // ✅ TAMBAH
     } catch (_) {}
 
     setState(() => isLoading = false);
@@ -77,7 +83,8 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
 
   // ================= HELPERS =================
 
-  String getName(String code) => ApiService.getPatientName(code, patients);
+  String getName(String code) =>
+      ApiService.getPatientName(code, patients);
 
   String? getPhoto(String code) {
     try {
@@ -89,16 +96,27 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
     }
   }
 
+  // ✅ TAMBAH
+  String? getDoctorPhoto(String code) {
+    try {
+      return photoUrl(
+        doctors.firstWhere((d) => d.doctorCode == code).photo,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+          body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
       backgroundColor: Color(0xFFF9FAF7),
 
-      // ================= NAVBAR =================
       bottomNavigationBar: DoctorNavBar(
         currentIndex: currentIndex,
         onTap: (index) {
@@ -114,7 +132,8 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => DoctorPatientListPage(user: widget.user),
+                  builder: (_) =>
+                      DoctorPatientListPage(user: widget.user),
                 ),
               );
               break;
@@ -122,7 +141,8 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => DoctorMedicalRecordPage(user: widget.user),
+                  builder: (_) =>
+                      DoctorMedicalRecordPage(user: widget.user),
                 ),
               );
               break;
@@ -130,7 +150,8 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => DoctorProfilePage(user: widget.user),
+                  builder: (_) =>
+                      DoctorProfilePage(user: widget.user),
                 ),
               );
               break;
@@ -144,20 +165,17 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
           children: [
             // ================= HEADER =================
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment:
+                  MainAxisAlignment.spaceBetween,
               children: [
-                // LEFT SIDE
                 Row(
                   children: [
-                    CircleAvatar(
+                    // ✅ FIX DI SINI
+                    ProfileAvatar(
+                      name: widget.user.name,
+                      photoUrl:
+                          getDoctorPhoto(widget.user.code),
                       radius: 20,
-                      backgroundColor: Color(0xFF00261B),
-                      child: Text(
-                        widget.user.name.isNotEmpty
-                            ? widget.user.name[0].toUpperCase()
-                            : "D",
-                        style: TextStyle(color: Colors.white),
-                      ),
                     ),
 
                     SizedBox(width: 10),
@@ -173,14 +191,13 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
                   ],
                 ),
 
-                // RIGHT SIDE
-                Icon(Icons.notifications, color: Color(0xFF00261B)),
+                Icon(Icons.notifications,
+                    color: Color(0xFF00261B)),
               ],
             ),
 
             SizedBox(height: 30),
 
-            // ================= HERO =================
             Text(
               "DAILY SCHEDULE",
               style: TextStyle(
@@ -199,16 +216,8 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
               ),
             ),
 
-            SizedBox(height: 10),
-
-            Text(
-              "Manage your daily patient flow and medical records for today.",
-              style: TextStyle(color: Colors.grey),
-            ),
-
             SizedBox(height: 20),
 
-            // ================= STATS =================
             Row(
               children: [
                 _statBox("TOTAL VISIT", "$totalVisit", false),
@@ -219,10 +228,9 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
 
             SizedBox(height: 20),
 
-            // ================= FILTER =================
             Row(
               children: [
-                _filter("All Slots", "all"),
+                _filter("All Appointments", "all"),
                 _filter("Morning", "morning"),
                 _filter("Afternoon", "afternoon"),
               ],
@@ -230,7 +238,6 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
 
             SizedBox(height: 20),
 
-            // ================= LIST =================
             ...filteredAppointments.map((a) {
               final name = getName(a.patientCode);
               final photo = getPhoto(a.patientCode);
@@ -241,16 +248,20 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
                 padding: EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius:
+                      BorderRadius.circular(20),
                   border: Border(
                     left: BorderSide(
-                      color: isCompleted ? Colors.grey.shade300 : Colors.green,
+                      color: isCompleted
+                          ? Colors.grey.shade300
+                          : Colors.green,
                       width: 4,
                     ),
                   ),
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
@@ -259,24 +270,29 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
                           backgroundImage: photo != null
                               ? NetworkImage(photo)
                               : null,
-                          child: photo == null ? Text(name[0]) : null,
+                          child: photo == null
+                              ? Text(name[0])
+                              : null,
                         ),
                         SizedBox(width: 12),
 
                         Expanded(
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
                             children: [
                               Text(
                                 name,
                                 style: TextStyle(
                                   fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight:
+                                      FontWeight.bold,
                                 ),
                               ),
                               Text(
                                 "ID: ${a.patientCode}",
-                                style: TextStyle(color: Colors.grey),
+                                style: TextStyle(
+                                    color: Colors.grey),
                               ),
                             ],
                           ),
@@ -290,12 +306,17 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
                           decoration: BoxDecoration(
                             color: a.status == "completed"
                                 ? Colors.grey.shade300
-                                : a.status == "scheduled"
-                                ? Colors.green.shade100
-                                : Colors.red.shade100,
-                            borderRadius: BorderRadius.circular(20),
+                                : a.status ==
+                                        "scheduled"
+                                    ? Colors
+                                        .green.shade100
+                                    : Colors.red.shade100,
+                            borderRadius:
+                                BorderRadius.circular(
+                                    20),
                           ),
-                          child: Text(a.status.toUpperCase()),
+                          child:
+                              Text(a.status.toUpperCase()),
                         ),
                       ],
                     ),
@@ -303,33 +324,32 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
                     SizedBox(height: 16),
 
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment:
+                          MainAxisAlignment.spaceBetween,
                       children: [
                         Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              "DATE & TIME",
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey,
-                              ),
-                            ),
+                            Text("DATE & TIME",
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    color:
+                                        Colors.grey)),
                             SizedBox(height: 4),
                             Text(a.date),
                             Text(a.time),
                           ],
                         ),
                         Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              "SYMPTOMS",
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey,
-                              ),
-                            ),
+                            Text("SYMPTOMS",
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    color:
+                                        Colors.grey)),
                             SizedBox(height: 4),
                             Text(a.symptoms ?? "-"),
                           ],
@@ -351,16 +371,22 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
       child: Container(
         padding: EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: green ? Colors.green : Colors.grey.shade200,
+          color: green
+              ? Colors.green
+              : Colors.grey.shade200,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
-            Text(title, style: TextStyle(fontSize: 10)),
+            Text(title,
+                style: TextStyle(fontSize: 10)),
             Text(
               value,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -378,14 +404,21 @@ class _DoctorAppointmentPageState extends State<DoctorAppointmentPage> {
           setState(() => selectedFilter = value);
         },
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding:
+              EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: active ? Color(0xFF00261B) : Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(20),
+            color: active
+                ? Color(0xFF00261B)
+                : Colors.grey.shade200,
+            borderRadius:
+                BorderRadius.circular(20),
           ),
           child: Text(
             text,
-            style: TextStyle(color: active ? Colors.white : Colors.black),
+            style: TextStyle(
+                color: active
+                    ? Colors.white
+                    : Colors.black),
           ),
         ),
       ),
