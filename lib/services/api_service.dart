@@ -75,10 +75,10 @@ class ApiService {
       Uri.parse("$baseUrl/appointments"),
       headers: headers,
       body: jsonEncode({
-        "doctor_code": doctorCode,
-        "date": date,
-        "time": time,
-        "symptoms": symptoms,
+        "DoctorCode": doctorCode,
+        "Appointment_date": date,
+        "Appointment_time": time,
+        if (symptoms != null && symptoms.isNotEmpty) "Symptoms": symptoms,
       }),
     );
 
