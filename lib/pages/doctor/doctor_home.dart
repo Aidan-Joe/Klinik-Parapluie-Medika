@@ -304,7 +304,7 @@ class _DoctorHomeState extends State<DoctorHome> {
 
               // GREETING
               Text(
-                "Good Morning, ${widget.user.name}",
+                "Good Night, ${widget.user.name}",
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,

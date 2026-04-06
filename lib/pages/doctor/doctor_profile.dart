@@ -3,7 +3,6 @@ import '../../services/api_service.dart';
 import '../../models/user.dart';
 import '../../models/doctor.dart';
 import '../../theme.dart';
-import '../../widgets/profile_avatar.dart';
 import '../../widgets/doctor_navbar.dart';
 import '../../login_page.dart';
 
@@ -66,24 +65,18 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
         value ? "Available" : "Not Available",
       );
     } catch (e) {
-      print("ERROR STATUS: $e");
-
-      // rollback kalau gagal
       setState(() => isAvailable = !value);
     }
   }
 
   Future<void> pickImage() async {
     final picker = ImagePicker();
-
     final picked = await picker.pickImage(source: ImageSource.gallery);
 
     if (picked != null) {
       setState(() {
         selectedImage = File(picked.path);
       });
-
-    
     }
   }
 
@@ -117,8 +110,6 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
       ),
     );
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -174,155 +165,214 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
       ),
 
       body: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 100),
-          children: [
-            // HEADER
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundImage: selectedImage != null
-                          ? FileImage(selectedImage!)
-                          : (doctor?.photo != null &&
-                                  doctor!.photo!.isNotEmpty
-                              ? NetworkImage(photoUrl(doctor!.photo)!)
-                              : null) as ImageProvider?,
-                      child: doctor?.photo == null && selectedImage == null
-                          ? Text(widget.user.name[0])
-                          : null,
+        child: CustomScrollView(
+          slivers: [
+            // ================= HEADER (TIDAK ADA LOGOUT) =================
+            SliverAppBar(
+              expandedHeight: 240,
+              pinned: true,
+              automaticallyImplyLeading: false,
+              backgroundColor: Colors.transparent,
+              flexibleSpace: FlexibleSpaceBar(
+                background: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF00261B), Color(0xFF004D40)],
                     ),
-                    SizedBox(width: 10),
-                    Text(
-                      "Clinic Parapluie",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Color(0xFF00261B),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(height: 40),
+
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 50,
+                            backgroundImage: selectedImage != null
+                                ? FileImage(selectedImage!)
+                                : (doctor?.photo != null &&
+                                              doctor!.photo!.isNotEmpty
+                                          ? NetworkImage(
+                                              photoUrl(doctor!.photo)!,
+                                            )
+                                          : null)
+                                      as ImageProvider?,
+                          ),
+
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: pickImage,
+                              child: Container(
+                                padding: EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(Icons.camera_alt, size: 18),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(height: 12),
+
+                      Text(
+                        widget.user.name,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      SizedBox(height: 6),
+
+                      Text(
+                        "Doctor • ${doctor?.specialization ?? '-'}",
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    // ================= AVAILABILITY (NEW DESIGN) =================
+                    Container(
+                      padding: EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          // ICON BOX
+                          Container(
+                            padding: EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Color(0xFFE8F8F1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.event_available,
+                              color: Colors.green,
+                            ),
+                          ),
+
+                          SizedBox(width: 12),
+
+                          // TEXT
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Availability",
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  isAvailable
+                                      ? "AVAILABLE NOW"
+                                      : "NOT AVAILABLE",
+                                  style: TextStyle(
+                                    color: isAvailable
+                                        ? Colors.green
+                                        : Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // SWITCH CUSTOM
+                          Switch(
+                            value: isAvailable,
+                            onChanged: updateStatus,
+                            activeColor: Colors.green,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: 16),
+
+                    // ================= DOCTOR ID & SPECIALIZATION =================
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _smallCard("Doctor ID", widget.user.code),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: _smallCard(
+                            "Specialization",
+                            doctor?.specialization ?? "-",
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: 16),
+
+                    // ================= EMAIL & PHONE =================
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: [
+                          _tile(
+                            Icons.email_rounded,
+                            "Email",
+                            doctor?.email ?? "-",
+                          ),
+                          Divider(height: 1),
+                          _tile(
+                            Icons.phone_rounded,
+                            "Phone",
+                            doctor?.phone ?? "-",
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: 30),
+
+                    // ================= LOGOUT =================
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: _logout,
+                        icon: Icon(Icons.logout, color: Colors.red),
+                        label: Text(
+                          "Logout",
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.red.withOpacity(0.4)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
                       ),
                     ),
                   ],
-                ),
-                Icon(Icons.notifications, color: Color(0xFF00261B)),
-              ],
-            ),
-
-            SizedBox(height: 30),
-
-            // PROFILE CARD
-            Container(
-              padding: EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Color(0xFF16C47F),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundImage: selectedImage != null
-                        ? FileImage(selectedImage!)
-                        : (doctor?.photo != null &&
-                                doctor!.photo!.isNotEmpty
-                            ? NetworkImage(photoUrl(doctor!.photo)!)
-                            : null) as ImageProvider?,
-                    child: doctor?.photo == null && selectedImage == null
-                        ? Text(widget.user.name[0])
-                        : null,
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    widget.user.name,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text("Doctor", style: TextStyle(color: Colors.white70)),
-                  SizedBox(height: 15),
-
-                  GestureDetector(
-                    onTap: pickImage,
-                    child: Text(
-                      "Change Photo",
-                      style: TextStyle(
-                        color: Colors.greenAccent,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(height: 20),
-
-            // AVAILABILITY
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Availability",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Switch(
-                    value: isAvailable,
-                    onChanged: updateStatus,
-                    activeColor: Colors.green,
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(height: 20),
-
-            // INFO
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  _info("Doctor ID", widget.user.code),
-                  _info("Specialization", doctor?.specialization ?? "-"),
-                ],
-              ),
-            ),
-
-            SizedBox(height: 30),
-
-            // LOGOUT
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: OutlinedButton.icon(
-                onPressed: _logout,
-                icon: Icon(Icons.logout, color: Colors.red),
-                label: Text(
-                  "Logout",
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: Colors.red.withOpacity(0.4)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
                 ),
               ),
             ),
@@ -331,15 +381,49 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
       ),
     );
   }
+  // ================= WIDGET =================
 
-  Widget _info(String label, String value) {
+  Widget _tile(IconData icon, String label, String value) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.all(16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: Colors.grey)),
-          Text(value, style: TextStyle(fontWeight: FontWeight.bold)),
+          Icon(icon, color: Colors.grey),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(color: Colors.grey)),
+                SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _smallCard(String title, String value) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(color: Colors.grey)),
+          SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
         ],
       ),
     );

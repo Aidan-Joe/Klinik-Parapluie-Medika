@@ -10,7 +10,7 @@ import '../models/room.dart';
 import '../models/doctor.dart';
 
 class ApiService {
-  static const String baseUrl = "http://192.168.18.66:1234/api";
+  static const String baseUrl = "http://192.168.1.5:1234/api";
 
   static String? cookie;
 
